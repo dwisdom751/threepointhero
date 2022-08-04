@@ -1,0 +1,226 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+<center id="pickMode"> 
+<button id="spBut">single player</button>
+<button id="muBut">multiplayer</button>
+</center>
+<center><h2 id="score">Baskets: </h2><h2 id="throws">Throws: </h2></center>
+
+<center><canvas id="myCan" width="600" height="600"></canvas></center>
+</body>
+<script>
+var can = document.getElementById("myCan");
+var canTX = can.getContext("2d");
+
+var score = [];
+var throwNum = [];
+
+function myRan(min, max)
+{
+	return (Math.random()* (max-min) ) + min
+}
+
+class livingBall{
+	constructor(startX, startY)
+	{
+		this.posX = startX
+		this.posY = startY
+		this.baseX = startX
+		this.baseY = startY
+		
+		//status determines what the ball will do every tick
+		//status 0 is moving up and down before the throw and status 1 is once the ball is thrown
+		this.status = 0
+		//keeps track of if the ball is going up or down on the pre throw phase
+		this.raiseLower = -1;
+		
+		//speed for stauts 2(when the ball is thrown)
+		this.speedX = 0;
+		this.speedY = 0;
+		
+		this.radius = 20;
+	}
+	
+	draw(drawOn, color)
+	{
+		drawOn.strokeStyle = color
+		drawOn.beginPath();
+		drawOn.arc(this.posX,this.posY,this.radius,0,2*Math.PI);
+		drawOn.stroke();
+	}
+	reset()
+	{
+		this.status = 0
+		this.speedX = 0
+		this.speedY = 0
+		this.posX = this.baseX
+		this.posY = this.baseY
+	}
+	
+	bob()
+	{
+		if((this.posY >= 540) || (this.posY <= 60))
+		{
+			this.raiseLower *= -1;
+		}
+		
+		this.posY += 4*this.raiseLower;
+	}
+	throwing()
+	{
+		
+		this.posX += this.speedX
+		this.posY += this.speedY;
+		
+		this.speedX -= .1;
+		this.speedY += 1.1;
+		console.log(can.getBoundingClientRect().height)
+		if(this.posY >= can.getBoundingClientRect().height)
+		{
+			this.reset()
+		}
+	}
+	tryThrow(pNum)
+	{
+		//you can only throw in bob mode
+		if(this.status == 0)
+		{
+			this.speedX = 15;
+			this.speedY = -16;
+			this.status = 1;
+			throwNum[pNum] += 1;
+			if(gamemode == 0)
+			{
+				document.getElementById("throws").innerHTML = ("Throws: "+throwNum[pNum])
+			}
+			if(gamemode == 1)
+			{
+				document.getElementById("throws").innerHTML = ("<span style=\"color: orange\">"
+				+"Player 1 Throws: "+throwNum[0]
+				+"</span><span style=\"color: purple\"> Player 2 Throws: "+throwNum[1]+"</span>")
+			}
+		}
+	}
+	step()
+	{
+		switch(this.status){
+			case 0:
+				this.bob()
+				break;
+			case 1:
+				this.throwing()
+				break;
+			default:
+				break;
+		}
+	}
+	
+}
+
+class basket{
+	constructor()
+	{
+		this.radius = 20
+		this.posX = myRan(380,600)
+		this.posY = myRan(320,600)
+	}
+	draw(drawOn)
+	{
+		drawOn.strokeStyle = "red"
+		drawOn.beginPath();
+		drawOn.arc(this.posX,this.posY,20,0,2*Math.PI);
+		drawOn.stroke();
+	}
+	collide(playerX, playerY, playerR, player, pNum)
+	{
+		if(Math.sqrt((playerX-this.posX)**2+(playerY-this.posY)**2) <= this.radius+playerR)
+		{
+			score[pNum] += 1
+			this.posX = myRan(380,570)
+			this.posY = myRan(350,570)
+			if(gamemode == 0)
+			{
+				document.getElementById("score").innerHTML = "Baskets: "+score[0]
+			}
+			if(gamemode == 1)
+			{
+				document.getElementById("score").innerHTML = ("<span style=\"color: orange\">"
+				+"Player 1 Baskets: "+score[0]
+				+"</span><span style=\"color: purple\"> Player 2 Baskets: "+score[1]+"</span>")
+			}
+
+			player.status = 0
+			player.reset()
+		}
+	}
+}
+
+var myBalls = []
+myBask = new basket()
+//saves what gamemode to play, -1 for not choosen yet, 0 for single player, 1 for multiplayer
+gamemode = -1
+
+function startSingleplayer()
+{
+	console.log("here")
+	gamemode = 0
+	score = [0]
+	throwNum = [0]
+	myBalls = [new livingBall(40,280)]
+	
+	document.getElementById("pickMode").innerHTML = ("")
+}
+
+function startMultiplayer()
+{
+	gamemode = 1
+	score = [0,0]
+	throwNum = [0,0]
+	myBalls = [new livingBall(40,480), new livingBall(40,100)]
+	
+	document.getElementById("pickMode").innerHTML = ("")
+}
+
+function mainLoop()
+{
+	if(gamemode == 0)
+	{
+		canTX.clearRect(0, 0, can.width, can.height);
+		myBalls[0].draw(canTX,"orange")
+		myBalls[0].step()
+		myBask.draw(canTX)
+		myBask.collide(myBalls[0].posX,myBalls[0].posY,myBalls[0].radius,myBalls[0],0)
+	}
+	if(gamemode == 1)
+	{
+		canTX.clearRect(0, 0, can.width, can.height);
+		myBalls[0].draw(canTX,"orange")
+		myBalls[0].step()
+		myBalls[1].draw(canTX,"purple")
+		myBalls[1].step()
+		myBask.draw(canTX)
+		myBask.collide(myBalls[0].posX,myBalls[0].posY,myBalls[0].radius,myBalls[0],0)
+		myBask.collide(myBalls[1].posX,myBalls[1].posY,myBalls[1].radius,myBalls[1],1)
+	}
+}
+
+document.onkeydown = function(e){
+	if(e.keyCode == 16){
+		myBalls[0].tryThrow(0)
+		
+	}
+	if(e.keyCode == 65 && gamemode == 1){
+		myBalls[1].tryThrow(1)
+	}
+	console.log(e.keyCode)
+}
+
+document.getElementById("spBut").addEventListener("click",startSingleplayer)
+document.getElementById("muBut").addEventListener("click",startMultiplayer)
+
+setInterval(mainLoop,15)
+
+</script>
+
+</html>
